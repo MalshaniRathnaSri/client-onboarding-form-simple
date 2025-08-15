@@ -17,16 +17,34 @@ export const onboardingSchema = z.object({
     .min(2, "Company name must be at least 2 characters")
     .max(100, "Company name must be at most 100 characters"),
 
-  services: z.array(
-    z.enum(["UI/UX", "Branding", "Web Dev", "Mobile App"])
-  ).min(1, "Select at least one service"),
+  services: z
+    .any() 
+    .refine((val) => Array.isArray(val), {
+      message: "Please select at least one service",
+    })
+    .transform((val) => val as string[])
+    .refine(
+      (val) =>
+        val.length > 0 &&
+        val.every((item) =>
+          ["UI/UX", "Branding", "Web Dev", "Mobile App"].includes(item)
+        ),
+      { message: "Please select at least one valid service" }
+    ),
 
   budgetUsd: z
-    .number()
-    .int("Budget must be an integer")
-    .min(100, "Budget must be at least 100")
-    .max(1000000, "Budget must be at most 1,000,000")
-    .optional(),
+    .union([
+      z
+        .number()
+        .int("Budget must be a whole number")
+        .min(100, "Budget must be at least $100")
+        .max(1000000, "Budget must be less than or equal to $1,000,000"),
+      z.nan(), 
+    ])
+    .optional()
+    .refine((val) => val === undefined || !isNaN(val as number), {
+      message: "Budget must be a number",
+    }),
 
   projectStartDate: z.string().refine((val) => {
     const selectedDate = new Date(val);
@@ -34,9 +52,11 @@ export const onboardingSchema = z.object({
     return selectedDate >= today;
   }, { message: "Project start date must be today or later" }),
 
-  acceptTerms: z.literal(true).refine((val) => val === true, {
-    message: "You must accept the terms",
-  }),
+  acceptTerms: z
+    .any()
+    .refine((val) => val === true, {
+      message: "You must accept the terms",
+    }),
 });
 
 export type OnboardingFormData = z.infer<typeof onboardingSchema>;
